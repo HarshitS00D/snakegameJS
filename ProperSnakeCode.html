@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background:black; display: flex; align-items: center; justify-content: center; }
+    canvas { border: 1px solid white; }
+    label {color : #2794eb; font-size: 16px; font-family: Arial; font-weight: bold;}
+  </style>
+</head>
+<body>
+  <div>
+    <label id="lblscore">SCORE = 0</label>
+    <label id="lblhighscore" style="float: right"></label><br>
+    <canvas width="400" height="400" id="game" onclick="pause()"></canvas><br>
+    <img src="newplay.png" id="pauseplay" height="30" width="30"  style="visibility: hidden">
+  </div>
+<script>
+var canvas = document.getElementById('game');
+var context = canvas.getContext('2d');
+var grid = 16;
+var score = getScore();
+document.getElementById('lblscore').innerHTML="SCORE = "+score;
+var flag = 1;
+var pausef = false;
+var input=[];//Input Array
+var speed=160;
+var highscore=getHighScore();  
+var snake = getSnake();
+var apple = getApple();
+var dx=getdx();
+var dy=getdy();
+
+
+function getdx()
+{
+  if(!localStorage.dx)
+    return 16;
+  return JSON.parse(localStorage.dx);
+}
+function getdy()
+{
+  if(!localStorage.dy)
+    return 0;
+  return JSON.parse(localStorage.dy);
+}
+function getScore()
+{
+  if(!localStorage.score)
+    return 0;
+  return JSON.parse(localStorage.score);  
+}
+function getSnake()
+{
+  if(!localStorage.snake)
+  {
+    var snake = {
+    x : 160,
+    y : 160 ,
+    cells : [{x:160 , y:160} , {x:144 , y:160} , {x:128 , y:160}] ,
+    };
+    return snake;
+  }
+  return JSON.parse(localStorage.snake);
+}
+function getApple()
+{
+  if(!localStorage.apple)
+  {
+    var apple = {
+    x: 320,
+    y: 0
+    };
+    return apple;
+  }
+  return JSON.parse(localStorage.apple);
+}
+function getHighScore()
+{
+  if(!localStorage.highscore)
+  {
+    localStorage.setItem("highscore",0);
+    return 0;
+  }
+  return localStorage.getItem("highscore");
+}
+
+function setHighScore()
+{
+  localStorage.setItem("highscore",score);
+}
+
+function displayHighScore()
+{
+  document.getElementById("lblhighscore").innerHTML="HIGHSCORE = "+highscore;
+}
+displayHighScore();
+
+function drawApple() // draw apple
+{
+  context.fillStyle = 'pink';
+  context.fillRect(apple.x, apple.y, grid-1, grid-1); 
+}
+drawApple();
+
+function drawSnake() // draw snake
+{
+  context.fillStyle = 'yellow'; //head color
+  context.fillRect(snake.cells[0].x, snake.cells[0].y, grid-1, grid-1);
+  context.fillStyle = '#4ef037'; //body color
+  for(var i=1 ; i<snake.cells.length ; i++)
+    context.fillRect(snake.cells[i].x, snake.cells[i].y, grid-1, grid-1);
+}
+drawSnake();
+
+function displayScore()
+{
+  score++;
+  document.getElementById('lblscore').innerHTML="SCORE = "+score;
+}
+
+function moveSnake()
+{
+  if(pausef==true)
+  {
+    var img=document.getElementById("pauseplay");
+    context.drawImage(img,168,168)
+    return;
+  }
+  context.clearRect(0, 0, canvas.width,canvas.height);//new  
+
+  if(input.length!=0)
+  {
+      dx=input[0].dx;
+      dy=input[0].dy;
+      input.splice(0,1);
+  }  
+
+  snake.x += dx ;
+  snake.y += dy ;
+  
+  if(snake.x==400 || snake.y==400 || snake.x<0 || snake.y<0)
+  {
+    if(snake.x==400)
+    snake.x=0;
+    else if(snake.y==400)
+    snake.y=0;
+    else if(snake.x<0)
+    snake.x=384;
+    else snake.y=384; //console.log(snake.x+" "+snake.y);
+  }
+  if(snake.x == apple.x && snake.y == apple.y)
+  {
+    if(speed>50)
+    speed-=4;
+    snake.cells.unshift({x: snake.x , y: snake.y}) ;
+    displayScore();
+    generateRandomApple();
+  }
+  else { //console.log(snake.x+" "+snake.y);
+  snake.cells.unshift({x: snake.x , y: snake.y}) ; // Insert at 0th position
+  snake.cells.pop();  // remove the last element
+  }
+
+  if(checkCollision())
+  {
+    flag=0;
+    context.clearRect(0, 0, canvas.width,canvas.height);
+    context.font = "bold 30px Arial";
+    if(highscore<score)
+    {
+    setHighScore();
+    context.fillStyle= '#4ef037';
+    context.fillText("KUDOS!",140,200);
+    context.fillStyle= 'white';
+    context.fillText("🎉NEW HIGHSCORE🎉",35,250);
+    }
+    else {
+      context.fillStyle= '#4ef037';
+      context.fillText("GAME OVER!",100,200);
+      context.fillStyle= 'white';
+      context.fillText("press P to play again",60,250);
+    }
+    localStorage.removeItem('snake');
+    localStorage.removeItem('apple');
+    localStorage.removeItem('dx');
+    localStorage.removeItem('dy');
+    localStorage.removeItem('score');
+    document.addEventListener('keydown',function(e){
+      if(e.keyCode==80)
+      {
+        window.location.reload();
+      }
+    });
+  return;
+  }
+
+  drawSnake();
+  drawApple();
+  setTimeout(moveSnake,speed);
+}
+
+function checkCollision()
+{
+  for(let i=1;i<snake.cells.length;i++)
+  {
+    if(snake.cells[i].x == snake.x && snake.cells[i].y== snake.y )
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+function generateRandomApple()
+{
+  let max=400;
+  let min=0;
+  let randomx = Math.random() * (max - min) + min;
+  let randomy = Math.random() * (max - min) + min;
+ 
+  randomx=randomx-(randomx%grid);
+  randomy=randomy-(randomy%grid);
+
+  for(let i=0;i<snake.cells.length;i++)
+  {
+    if(snake.cells[i].x==randomx && snake.cells[i].y==randomy)
+    {
+      return generateRandomApple();
+    }
+  }
+  apple.x=randomx;
+  apple.y=randomy;
+  return 1;
+}
+
+function pause()
+{
+  if(pausef==false && flag == 1)
+  {
+    localStorage.snake=JSON.stringify(snake);
+    localStorage.apple=JSON.stringify(apple);
+    localStorage.dx=JSON.stringify(dx);
+    localStorage.dy=JSON.stringify(dy);
+    localStorage.score=JSON.stringify(score);
+    pausef=true;
+    moveSnake();
+  }
+  else if(flag == 1){
+  pausef=false;
+  moveSnake();
+  }
+  
+}
+moveSnake();//First Trigger
+// listen to keyboard events to move the snake
+document.addEventListener('keydown', function(e) 
+{
+  if(flag==1)
+  {
+    var prevdx,prevdy; 
+    if(input.length!=0)
+    {
+        prevdx=input[input.length-1].dx;
+        prevdy=input[input.length-1].dy;
+    }
+    else{
+        prevdx=dx;
+        prevdy=dy;
+    }
+    if (e.keyCode == 37 && prevdx!=16) // left arrow key 
+    {
+      var inputObj = new Object();
+      inputObj.dx=-grid;
+      inputObj.dy=0;
+      if(input.length<2)
+      input.push(inputObj);
+    }
+    else if (e.keyCode == 38 && prevdy!=16) // up arrow key 
+    {
+      var inputObj = new Object();
+      inputObj.dy=-grid;
+      inputObj.dx=0;
+      if(input.length<2)
+      input.push(inputObj);
+    }
+    else if (e.keyCode == 39 && prevdx!=-16) // right arrow key 
+    {
+      var inputObj = new Object();
+      inputObj.dx=grid;
+      inputObj.dy=0;
+      if(input.length<2)
+      input.push(inputObj);
+    }
+    else if (e.keyCode == 40 && prevdy!=-16) // down arrow key 
+    {
+      var inputObj = new Object();
+      inputObj.dy=grid;
+      inputObj.dx=0;
+      if(input.length<2)
+      input.push(inputObj);
+    }
+    else if(e.keyCode == 80)
+      pause();
+  }
+  
+});
+</script>
+</body>
+</html>
